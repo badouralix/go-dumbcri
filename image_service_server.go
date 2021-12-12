@@ -2,21 +2,33 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"log"
 	"strconv"
+	"strings"
+
+	"golang.org/x/crypto/sha3"
 
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 )
 
 type ImageServiceServer struct {
-	Images []*cri.Image
+	// Images is a map of image id to cri images.
+	Images map[string]*cri.Image
 }
 
 // ListImages serves `crictl images`
 func (i *ImageServiceServer) ListImages(ctx context.Context, req *cri.ListImagesRequest) (*cri.ListImagesResponse, error) {
 	log.Printf("Received request on ListImages with Filter=%s", req.GetFilter())
+
+	images := make([]*cri.Image, 0)
+	for _, image := range i.Images {
+		images = append(images, image)
+	}
+
 	return &cri.ListImagesResponse{
-		Images: i.Images,
+		Images: images,
 	}, nil
 }
 
@@ -34,7 +46,34 @@ func (i *ImageServiceServer) ImageStatus(ctx context.Context, req *cri.ImageStat
 // PullImage serves `crictl pull`
 func (i *ImageServiceServer) PullImage(ctx context.Context, req *cri.PullImageRequest) (*cri.PullImageResponse, error) {
 	log.Printf("Received request on PullImage with Image=%s Auth=%s SandboxConfig=%s", req.GetImage(), req.GetAuth(), req.GetSandboxConfig())
-	return &cri.PullImageResponse{}, nil
+
+	split := strings.Split(req.Image.Image, ":")
+	if len(split) > 2 {
+		return nil, errors.New("request did not match expected image:tag format")
+	}
+
+	imageName := split[0]
+	imageTag := "latest"
+	if len(split) == 2 {
+		imageTag = split[1]
+	}
+	image := imageName + ":" + imageTag
+
+	h := sha3.New512()
+	h.Write([]byte(image))
+	id := hex.EncodeToString(h.Sum(nil))
+
+	i.Images[imageName] = &cri.Image{
+		Id:          id,
+		RepoTags:    []string{image},
+		RepoDigests: []string{},
+		Size_:       0,
+		Spec:        req.Image,
+	}
+
+	return &cri.PullImageResponse{
+		ImageRef: id,
+	}, nil
 }
 
 // RemoveImage serves `crictl rmi`

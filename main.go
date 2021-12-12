@@ -21,7 +21,7 @@ func main() {
 	// See https://grpc.io/docs/languages/go/basics/
 	server := grpc.NewServer()
 	cri.RegisterRuntimeServiceServer(server, &RuntimeServiceServer{})
-	cri.RegisterImageServiceServer(server, &ImageServiceServer{})
+	cri.RegisterImageServiceServer(server, &ImageServiceServer{Images: make(map[string]*cri.Image)})
 
 	// We might want to acquire a lock instead of unlinking
 	// See https://gavv.github.io/articles/unix-socket-reuse/
