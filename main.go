@@ -7,10 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	// Using v1alpha2 instead of v1 to match the version used in crictl
-	// See https://github.com/kubernetes-sigs/cri-tools/blob/36e98a6/cmd/crictl/version.go#L30
-	// See https://github.com/kubernetes-sigs/cri-tools/pull/712
-	cri "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 const (
